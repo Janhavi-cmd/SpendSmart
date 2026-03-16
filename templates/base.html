@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}SpendSmart{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+{% if session.user_id %}
+<nav class="navbar">
+  <div class="nav-inner">
+    <a href="/" class="nav-brand">
+      <div class="nav-brand-icon">₹</div>
+      SpendSmart
+    </a>
+    <div class="nav-links">
+      <a href="/"           class="nav-link">📊 Dashboard</a>
+      <a href="/analytics"  class="nav-link">📈 Analytics</a>
+      <a href="/settings"   class="nav-link">⚙️ Settings</a>
+      {% if session.get('is_admin') %}
+      <a href="/admin"      class="nav-link">🛡️ Admin</a>
+      {% endif %}
+    </div>
+    <div class="nav-right">
+      <span class="nav-user">▶ <span>{{ session.username }}</span></span>
+      <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">☀️</button>
+      <a href="/logout" class="btn btn-secondary" style="font-size:0.8rem;padding:6px 12px;">Logout</a>
+    </div>
+  </div>
+</nav>
+{% endif %}
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<div class="flash-container">
+  {% for cat, msg in messages %}
+  <div class="flash {{ cat }}">
+    {% if cat == 'success' %}✅{% elif cat == 'error' %}❌{% else %}ℹ️{% endif %}
+    {{ msg }}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endwith %}
+
+{% block content %}{% endblock %}
+
+<script src="{{ url_for('static', filename='js/script.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

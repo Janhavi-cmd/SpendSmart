@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% block title %}Admin — SpendSmart{% endblock %}
+{% block head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="page">
+  <div class="page-header">
+    <div class="page-title">🛡️ Admin Panel</div>
+    <div class="page-subtitle">// System overview and user management</div>
+  </div>
+
+  <!-- Stats Row -->
+  <div class="hero-grid" style="margin-bottom:24px;">
+    <div class="stat-card">
+      <div class="stat-label">Total Users</div>
+      <div class="stat-value">{{ users|length }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Expenses</div>
+      <div class="stat-value">{{ expenses|length }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Volume</div>
+      <div class="stat-value"><span class="currency">₹</span>{{ "%.0f"|format(expenses|sum(attribute='amount')) }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Avg Per User</div>
+      <div class="stat-value">
+        <span class="currency">₹</span>
+        {{ "%.0f"|format(expenses|sum(attribute='amount') / users|length) if users|length > 0 else 0 }}
+      </div>
+    </div>
+  </div>
+
+  <div class="admin-grid">
+    <!-- Users Table -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><span class="card-title-dot"></span>Registered Users</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead><tr><th>ID</th><th>Username</th><th>Email</th><th>Expenses</th></tr></thead>
+          <tbody>
+            {% for u in users %}
+            <tr>
+              <td class="text-mono">#{{ u.id }}</td>
+              <td>{{ u.username }}</td>
+              <td style="color:var(--text-muted);font-size:0.8rem;">{{ u.email }}</td>
+              <td><span style="color:var(--accent);">{{ u.expenses|length }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Category Chart -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><span class="card-title-dot"></span>All-Time Category Split</span>
+      </div>
+      <div style="padding:20px;height:280px;">
+        <canvas id="adminChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+const textColor = isDark ? '#7d8590' : '#5a6a7e';
+new Chart(document.getElementById('adminChart'), {
+  type: 'doughnut',
+  data: {
+    labels: {{ cat_labels|tojson }},
+    datasets: [{
+      data: {{ cat_values|tojson }},
+      backgroundColor: ['#00ff88','#00d4ff','#b06cff','#ffb236','#ff4757','#4ecdc4','#ff9a00','#7d8590'],
+      borderWidth: 0
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false, cutout: '60%',
+    plugins: { legend: { position: 'right', labels: { color: textColor, font: { family: 'DM Mono', size: 11 } } } }
+  }
+});
+</script>
+{% endblock %}

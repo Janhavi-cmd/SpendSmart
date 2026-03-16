@@ -1,0 +1,262 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard — SpendSmart{% endblock %}
+{% block head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="page">
+
+  <!-- HERO STATS -->
+  <div class="hero-grid">
+
+    <!-- Total This Month -->
+    <div class="stat-card">
+      <div class="stat-label"><span>⬛</span> This Month</div>
+      <div class="stat-value">
+        <span class="currency">₹</span><span data-count="{{ stats.total_this|int if stats else 0 }}" data-prefix="">{{ stats.total_this|int if stats else 0 }}</span>
+      </div>
+      <div class="stat-sub">
+        {% if stats and stats.total_last > 0 %}
+          {% set diff = ((stats.total_this - stats.total_last) / stats.total_last * 100)|round(1) %}
+          <span class="stat-badge {{ 'badge-up' if diff > 0 else 'badge-down' }}">
+            {{ '▲' if diff > 0 else '▼' }} {{ diff|abs }}%
+          </span>
+          vs last month
+        {% else %}
+          No comparison yet
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Daily Average -->
+    <div class="stat-card">
+      <div class="stat-label"><span>📅</span> Daily Average</div>
+      <div class="stat-value">
+        <span class="currency">₹</span><span data-count="{{ stats.daily_avg|int if stats else 0 }}">{{ stats.daily_avg|int if stats else 0 }}</span>
+      </div>
+      <div class="stat-sub text-muted">{{ stats.days_elapsed if stats else 0 }} days tracked</div>
+    </div>
+
+    <!-- Projected -->
+    <div class="stat-card">
+      <div class="stat-label"><span>🔮</span> Month Forecast</div>
+      <div class="stat-value" style="color:var(--accent-amber);">
+        <span class="currency" style="color:inherit;">₹</span><span data-count="{{ stats.projected|int if stats else 0 }}">{{ stats.projected|int if stats else 0 }}</span>
+      </div>
+      <div class="stat-sub text-muted">by end of month</div>
+    </div>
+
+    <!-- Health Score -->
+    <div class="health-card">
+      <div class="stat-label">🎯 Financial Health</div>
+      <div class="health-score-ring">
+        <svg class="ring-svg" width="72" height="72" viewBox="0 0 72 72">
+          <circle class="ring-bg"   cx="36" cy="36" r="30"/>
+          <circle class="ring-fill" cx="36" cy="36" r="30"/>
+          <text class="ring-score" x="36" y="42" text-anchor="middle" id="health-score-val"
+                data-score="{{ stats.health_score if stats else 50 }}">
+            {{ stats.health_score if stats else 50 }}
+          </text>
+        </svg>
+        <div class="health-info">
+          <div class="health-label">Health Score</div>
+          <div class="health-grade">
+            {% if stats %}
+              {% if stats.health_score >= 85 %}Excellent 🌟
+              {% elif stats.health_score >= 70 %}Good 👍
+              {% elif stats.health_score >= 50 %}Fair ⚠️
+              {% else %}Needs Work 📉{% endif %}
+            {% else %}No data yet{% endif %}
+          </div>
+          <div class="health-bar-wrap">
+            <div class="health-bar-fill" style="width:0"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- PERSONALITY + STREAK -->
+  <div class="meta-row">
+    <div class="personality-card">
+      <div class="meta-tag">🧠 Spending Personality</div>
+      <div class="personality-title">{{ stats.personality[0] if stats else '🌱 Fresh Starter' }}</div>
+      <div class="personality-desc">{{ stats.personality[1] if stats else 'Add expenses to discover your spending personality' }}</div>
+    </div>
+    <div class="streak-card">
+      <div class="meta-tag">🔥 Tracking Streak</div>
+      <div class="streak-number">
+        {{ stats.streak if stats else 0 }}
+        <span style="font-size:1rem;color:var(--text-muted);">days</span>
+      </div>
+      <div class="personality-desc">
+        {% if stats and stats.streak >= 7 %}Amazing consistency — keep it up! 🚀
+        {% elif stats and stats.streak >= 3 %}Good streak building! 💪
+        {% else %}Log expenses daily to build your streak{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN GRID: FORM + TRANSACTIONS -->
+  <div class="main-grid">
+
+    <!-- LEFT: Add Expense + AI -->
+    <div style="display:flex;flex-direction:column;gap:20px;">
+
+      <!-- Add Expense -->
+      <div class="card form-card">
+        <div class="card-header">
+          <span class="card-title"><span class="card-title-dot"></span>Add Expense</span>
+        </div>
+        <div class="form-body">
+          <form method="POST" action="/add">
+            <input type="hidden" name="category" id="category-input" value="Food">
+            <div class="form-group">
+              <label class="form-label">Amount</label>
+              <div class="amount-wrap">
+                <span class="amount-prefix">₹</span>
+                <input type="number" name="amount" class="form-input amount-input" placeholder="0.00"
+                       step="0.01" min="0.01" required>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Description</label>
+              <input type="text" name="description" class="form-input" placeholder="What was this for?">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Category</label>
+              <div class="cat-grid">
+                {% for cat in categories %}
+                <button type="button" class="cat-btn {% if loop.first %}active{% endif %}" data-cat="{{ cat }}">
+                  {{ {'Food':'🍔','Transport':'🚗','Shopping':'🛍️','Bills':'📄','Entertainment':'🎬','Health':'💊','Education':'📚','Other':'📦'}[cat] }}
+                  {{ cat }}
+                </button>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Date</label>
+              <input type="date" name="date" class="form-input"
+                     value="{{ now.strftime('%Y-%m-%d') if now is defined else '' }}"
+                     id="date-input">
+            </div>
+            <button type="submit" class="submit-btn">+ Add Expense</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- AI Panel -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title"><span class="card-title-dot"></span>AI Finance Assistant</span>
+        </div>
+        <div style="padding:12px 16px;">
+          <div class="ai-tabs">
+            <button class="ai-tab active" data-tab="insights">💡 Insights</button>
+            <button class="ai-tab" data-tab="budget">🎯 Budget</button>
+            <button class="ai-tab" data-tab="chat">💬 Ask AI</button>
+          </div>
+        </div>
+
+        <!-- Insights Panel -->
+        <div class="ai-panel active" id="panel-insights">
+          <div class="ai-cards-grid" id="insights-grid">
+            <div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--text-muted);font-size:0.85rem;">
+              <div class="spinner" style="margin:0 auto 12px;"></div>
+              Loading insights…
+            </div>
+          </div>
+        </div>
+
+        <!-- Budget Panel -->
+        <div class="ai-panel" id="panel-budget">
+          <div class="ai-cards-grid" id="budget-grid">
+            <div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--text-muted);font-size:0.85rem;">
+              Click Budget tab to load recommendations
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat Panel -->
+        <div class="ai-panel" id="panel-chat">
+          <div class="chat-box" id="chat-box">
+            <div class="chat-msg bot">
+              <div class="chat-avatar">🤖</div>
+              <div class="chat-bubble">Hi! I'm your AI finance assistant. Ask me things like <strong>"How much on food?"</strong>, <strong>"Compare last month"</strong>, or <strong>"Where can I save?"</strong></div>
+            </div>
+          </div>
+          <div class="chat-input-row">
+            <input type="text" id="chat-input" class="chat-input" placeholder="Ask anything about your spending…">
+            <button class="chat-send" onclick="sendChat()">→</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Links -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <a href="/analytics" class="btn btn-secondary" style="flex:1;">📈 Analytics</a>
+        <a href="/pdf" class="btn btn-secondary" style="flex:1;">📥 Export</a>
+      </div>
+
+    </div>
+
+    <!-- RIGHT: Transactions -->
+    <div class="transactions-section">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">
+            <span class="card-title-dot"></span>
+            Transactions
+            <span style="font-size:0.75rem;color:var(--text-dim);font-weight:400;">
+              ({{ expenses|length }} total)
+            </span>
+          </span>
+          {% if stats and stats.top_cat %}
+          <span style="font-size:0.75rem;color:var(--text-muted);">
+            Top: <span style="color:var(--accent);">{{ stats.top_cat }}</span>
+          </span>
+          {% endif %}
+        </div>
+
+        {% if expenses %}
+        <div class="tx-list" style="padding:8px 0;">
+          {% for e in expenses %}
+          <div class="tx-item">
+            <div class="tx-cat-icon" data-cat="{{ e.category }}"></div>
+            <div class="tx-info">
+              <div class="tx-desc">{{ e.description or e.category }}</div>
+              <div class="tx-meta">{{ e.category }} · {{ e.date.strftime('%d %b %Y') }}</div>
+            </div>
+            <div class="tx-right">
+              <div class="tx-amount">₹{{ "%.2f"|format(e.amount) }}</div>
+              <div class="tx-actions">
+                <a href="/edit/{{ e.id }}" class="tx-action-btn btn-edit">Edit</a>
+                <form method="POST" action="/delete/{{ e.id }}" style="display:inline;"
+                      onsubmit="return confirm('Delete this expense?')">
+                  <button type="submit" class="tx-action-btn btn-delete">Del</button>
+                </form>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+          <div class="empty-state-icon">💸</div>
+          <div class="empty-state-title">No expenses yet</div>
+          <div class="empty-state-desc">Add your first expense using the form on the left</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // Set today's date in form
+  document.getElementById('date-input').value = new Date().toISOString().split('T')[0];
+</script>
+{% endblock %}
